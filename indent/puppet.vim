@@ -13,11 +13,6 @@ setlocal autoindent smartindent
 setlocal indentexpr=GetPuppetIndent()
 setlocal indentkeys+=0],0)
 
-" Puppet shiftwidth files are 4
-setlocal sw=4
-setlocal expandtab
-setlocal ts=4
-
 if exists("*GetPuppetIndent")
     finish
 endif
