@@ -24,7 +24,7 @@ snippet encap
 snippet package
 	package {
 	  "${1:package_name}":
-	    ensure   => "${2:package_version}";
+	    ensure   => "${2:installed}";
 	    provider => "yum",
 	}
 snippet tidy
@@ -43,3 +43,28 @@ snippet cron
 	    minute  => ${4:minute},
 	    day     => ${5:day};
 	}
+snippet class
+	# Class:: $1
+	#
+	#
+	class ${1:classname} {
+	  ${2:#code...}
+	} # Class:: $1
+snippet def
+	# Define:: $1
+	# Args:: $2
+	#
+	define ${1:defname}(${2:args}) {
+	  ${3:#code}
+	} # Define: $1
+snippet inc
+	include "${1}"
+snippet #head
+	# Module:: ${1:modulename}
+	# Manifest:: ${2:init.pp}
+	#
+	# Author:: `system("git config user.name")` (<`system("git config user.email")`>)
+	# Date:: `system("ruby -e 'puts Time.now'")`
+	#
+	${3}
+
