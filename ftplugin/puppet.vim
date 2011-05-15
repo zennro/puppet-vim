@@ -107,7 +107,7 @@ function! s:SetModuleVars()
   " probably only a macosx problem with /tmp since it's really /private/tmp
   " but it's here if you find vim spinning on new files in certain places
   if !exists("g:puppet_stop_dirs")
-    g:puppet_stop_dirs = '/tmp;/private/tmp'
+    let g:puppet_stop_dirs = '/tmp;/private/tmp'
   endif
 
   " search path for init.pp
