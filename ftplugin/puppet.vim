@@ -30,7 +30,7 @@ let s:selector_re = '[=+]>\s*\$.*\s*?\s*{\s*$'
 
 " set keywordprg to 'pi' (alias for puppet describe)
 " this lets K invoke pi for word under cursor
-setlocal keywordprg=pi
+setlocal keywordprg="puppet describe"
 
 function! s:AlignArrows(op)
     let cursor_pos = getpos('.')
@@ -97,57 +97,41 @@ function! s:AlignLine(line, sep, maxpos, extra)
     return m[1] . spaces . m[2]
 endfunction
 
-" setup variables for use with template engines or whatever
-" The assumption is that each module is a repo
-" if it's not you'll get some extra pathings
-" Exported vars
-"   classname
-"   modulename
-"   classpath
-function! s:SetModuleVars(rcs)
+" detect if we are in a module and set variables for classpath (autoloader),
+" modulename, modulepath, and classname
+" useful to use in templates
+function! s:SetModuleVars()
 
-  if a:rcs == "git"   " when we use git we need to move dirs to figure out the relative tree
-    " full path of top of module
-    let l:module_path = fnamemodify(system("git rev-parse --show-toplevel")[:-2], ":p")
-    " name of module, no path
-    let b:module_name = fnamemodify(system("git rev-parse --show-toplevel")[:-2], ":t")
-    " path from top of repo to cwd
-    let l:top_to_cwd = system("git rev-parse --show-prefix")[:-2]
-  else " we rely on the cwd being at the top of the module
-    " full path of top of module
-    let l:module_path = fnamemodify(getcwd(), ":p")
-    " name of module, no path
-    let b:module_name = fnamemodify(l:module_path, ":t")
-    " path from top of repo to cwd
-    let l:top_to_cwd = ""
+  " set these to any dirs you want to stop searching on
+  " useful to stop vim from spinning disk looking all over for init.pp
+  " probably only a macosx problem with /tmp since it's really /private/tmp
+  " but it's here if you find vim spinning on new files in certain places
+  if !exists("g:puppet_stop_dirs")
+    g:puppet_stop_dirs = '/tmp;/private/tmp'
   endif
 
-  " relative path to file being edited
-  let l:cwd_to_file = expand("%:r")
-  " dump each thing into an array
-  let b:loader_array = []
-  " add compoonents in order split on / if needed
-  call add(b:loader_array, b:module_name)
-  let b:loader_array += split(l:top_to_cwd, '/')
-  let b:loader_array += split(l:cwd_to_file, '/')
-  call remove(b:loader_array, index(b:loader_array, "manifests"))
+  " search path for init.pp
+  let b:search_path = './**'
+  let b:search_path = b:search_path . ';' . getcwd() . ';' . g:puppet_stop_dirs
+  
+  " find what we assume to be our module dir
+  let b:initpp = findfile("init.pp", b:search_path) " find an init.pp up or down
+  let b:module_path = fnamemodify(b:initpp, ":p:h:h") " full path to module name
+  let b:module_name = fnamemodify(b:module_path, ":t") " just the module name
 
-  " if we can find a manifests directory we are in a module
-  let l:manifests_path = '**;' . l:module_path
-  let l:manifests = finddir("manifests", l:manifests_path) " look for a manifests dir
-  if exists("l:manifests")
-    let b:classpath = join(b:loader_array, "::")
-  else
-    let b:classpath = ""
+  " sub out the full path to the module with the name and replace slashes with ::
+  let b:classpath = fnamemodify(expand("%:p:r"), ':s#' . b:module_path . '/manifests#' . b:module_name . '#'. ":gs?/?::?")
+  let b:classname = expand("%:t:r")
+
+  " if we don't start with a word we didn't replace the module_path 
+  " probably b/c we couldn't find an init.pp / not a module
+  " so we assume that root of the filename is the class (sane for throwaway
+  " manifests
+  if b:classpath =~ '^::'
+    let b:classpath = b:classname
   endif
 endfunction
 
-if exists("g:puppet_module_support")
-  " check for various rcs's
-  call system("git rev-parse")
-  if ! v:shell_error
-    call s:SetModuleVars("git")
-  else
-    call s:SetModuleVars("")
-  endif
+if exists("g:puppet_module_detect")
+  call s:SetModuleVars()
 endif
