@@ -30,7 +30,7 @@ let s:selector_re = '[=+]>\s*\$.*\s*?\s*{\s*$'
 
 " set keywordprg to 'pi' (alias for puppet describe)
 " this lets K invoke pi for word under cursor
-setlocal keywordprg="puppet describe"
+setlocal keywordprg=puppet\ describe
 
 function! s:AlignArrows(op)
     let cursor_pos = getpos('.')
