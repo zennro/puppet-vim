@@ -28,6 +28,10 @@ endif
 let s:arrow_re = '[=+]>'
 let s:selector_re = '[=+]>\s*\$.*\s*?\s*{\s*$'
 
+" set keywordprg to 'pi' (alias for puppet describe)
+" this lets K invoke pi for word under cursor
+setlocal keywordprg=pi
+
 function! s:AlignArrows(op)
     let cursor_pos = getpos('.')
     let lnum = line('.')
@@ -92,3 +96,58 @@ function! s:AlignLine(line, sep, maxpos, extra)
     let spaces = repeat(' ', a:maxpos - strlen(m[1]) + a:extra)
     return m[1] . spaces . m[2]
 endfunction
+
+" setup variables for use with template engines or whatever
+" The assumption is that each module is a repo
+" if it's not you'll get some extra pathings
+" Exported vars
+"   classname
+"   modulename
+"   classpath
+function! s:SetModuleVars(rcs)
+
+  if a:rcs == "git"   " when we use git we need to move dirs to figure out the relative tree
+    " full path of top of module
+    let l:module_path = fnamemodify(system("git rev-parse --show-toplevel")[:-2], ":p")
+    " name of module, no path
+    let b:module_name = fnamemodify(system("git rev-parse --show-toplevel")[:-2], ":t")
+    " path from top of repo to cwd
+    let l:top_to_cwd = system("git rev-parse --show-prefix")[:-2]
+  else " we rely on the cwd being at the top of the module
+    " full path of top of module
+    let l:module_path = fnamemodify(getcwd(), ":p")
+    " name of module, no path
+    let b:module_name = fnamemodify(l:module_path, ":t")
+    " path from top of repo to cwd
+    let l:top_to_cwd = ""
+  endif
+
+  " relative path to file being edited
+  let l:cwd_to_file = expand("%:r")
+  " dump each thing into an array
+  let b:loader_array = []
+  " add compoonents in order split on / if needed
+  call add(b:loader_array, b:module_name)
+  let b:loader_array += split(l:top_to_cwd, '/')
+  let b:loader_array += split(l:cwd_to_file, '/')
+  call remove(b:loader_array, index(b:loader_array, "manifests"))
+
+  " if we can find a manifests directory we are in a module
+  let l:manifests_path = '**;' . l:module_path
+  let l:manifests = finddir("manifests", l:manifests_path) " look for a manifests dir
+  if exists("l:manifests")
+    let b:classpath = join(b:loader_array, "::")
+  else
+    let b:classpath = ""
+  endif
+endfunction
+
+if exists("g:puppet_module_support")
+  " check for various rcs's
+  call system("git rev-parse")
+  if ! v:shell_error
+    call s:SetModuleVars("git")
+  else
+    call s:SetModuleVars("")
+  endif
+endif
