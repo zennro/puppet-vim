@@ -28,6 +28,10 @@ endif
 let s:arrow_re = '[=+]>'
 let s:selector_re = '[=+]>\s*\$.*\s*?\s*{\s*$'
 
+" set keywordprg to 'pi' (alias for puppet describe)
+" this lets K invoke pi for word under cursor
+setlocal keywordprg=puppet\ describe
+
 function! s:AlignArrows(op)
     let cursor_pos = getpos('.')
     let lnum = line('.')
@@ -92,3 +96,42 @@ function! s:AlignLine(line, sep, maxpos, extra)
     let spaces = repeat(' ', a:maxpos - strlen(m[1]) + a:extra)
     return m[1] . spaces . m[2]
 endfunction
+
+" detect if we are in a module and set variables for classpath (autoloader),
+" modulename, modulepath, and classname
+" useful to use in templates
+function! s:SetModuleVars()
+
+  " set these to any dirs you want to stop searching on
+  " useful to stop vim from spinning disk looking all over for init.pp
+  " probably only a macosx problem with /tmp since it's really /private/tmp
+  " but it's here if you find vim spinning on new files in certain places
+  if !exists("g:puppet_stop_dirs")
+    let g:puppet_stop_dirs = '/tmp;/private/tmp'
+  endif
+
+  " search path for init.pp
+  let b:search_path = './**'
+  let b:search_path = b:search_path . ';' . getcwd() . ';' . g:puppet_stop_dirs
+  
+  " find what we assume to be our module dir
+  let b:initpp = findfile("init.pp", b:search_path) " find an init.pp up or down
+  let b:module_path = fnamemodify(b:initpp, ":p:h:h") " full path to module name
+  let b:module_name = fnamemodify(b:module_path, ":t") " just the module name
+
+  " sub out the full path to the module with the name and replace slashes with ::
+  let b:classpath = fnamemodify(expand("%:p:r"), ':s#' . b:module_path . '/manifests#' . b:module_name . '#'. ":gs?/?::?")
+  let b:classname = expand("%:t:r")
+
+  " if we don't start with a word we didn't replace the module_path 
+  " probably b/c we couldn't find an init.pp / not a module
+  " so we assume that root of the filename is the class (sane for throwaway
+  " manifests
+  if b:classpath =~ '^::'
+    let b:classpath = b:classname
+  endif
+endfunction
+
+if exists("g:puppet_module_detect")
+  call s:SetModuleVars()
+endif
